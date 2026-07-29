@@ -1,0 +1,576 @@
+{
+  "name": "HireLens_AI",
+  "nodes": [
+    {
+      "parameters": {
+        "downloadAttachments": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailReadImap",
+      "typeVersion": 2.1,
+      "position": [
+        -304,
+        -736
+      ],
+      "id": "a6d283af-98c4-4960-8650-1fac32a398f9",
+      "name": "Email Trigger (IMAP)",
+      "credentials": {
+        "imap": {
+          "id": "NbSNxoOKbJxlISen",
+          "name": "IMAP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "37ed40bb-c9aa-4ad8-a2a0-881dfd213bcb",
+              "name": "cv_content",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "cb003e1b-5931-4fbf-8851-07f985eb3207",
+              "name": "email_content",
+              "value": "={{ $('Email Trigger (IMAP)').item.json.textPlain }}",
+              "type": "string"
+            },
+            {
+              "id": "e8a2217b-af94-4130-9e1c-0ad7b40155ea",
+              "name": "sent_email",
+              "value": "={{ $('Email Trigger (IMAP)').item.json.from.match(/<([^>]+)>/)?.[1] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        144,
+        -736
+      ],
+      "id": "7c454ba8-0640-4bae-a18f-59e1c51de0c3",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "binaryPropertyName": "attachment_0",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        -80,
+        -736
+      ],
+      "id": "c2daaaa2-629c-48fc-a619-1998dc32fac4",
+      "name": "Extract Pdf Content"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze the following job application and evaluate the candidate against the most relevant job description from the Job Lookup Tool.\n\nCandidate Email:\n{{ $json.sent_email }}\n\nEmail Content:\n{{ $json.email_content }}\n\nCV Text:\n{{ $json.cv_content }}\n\nYour task:\n- extract the candidate’s name, phone number, applied job title, relevant years of experience, relevant skills, and relevant education\n- fetch the matching job record from the Job Lookup Tool\n- compare the candidate with the job description\n- produce a score from 0 to 100\n- determine the final status: interview, review, or rejected\n- save the final record into the Candidate Save Tool using:\n  id, name, email, phone, job_id, score, status\n\nReturn the final result as strict JSON only.",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an AI Recruitment Screening Agent.\n\nYou receive:\n- candidate email address\n- email content\n- CV text\n- access to a Job Lookup Tool that returns: job_id, job_title, job_description\n- access to a Candidate Save Tool that stores: id, name, email, phone, job_id, score, status\n\nYour task:\n1. Analyze the email content and CV text.\n2. Identify the job the candidate is applying for.\n3. Use the Job Lookup Tool to find the best matching job record.\n4. Extract only the information relevant to that job:\n   - candidate name\n   - phone number\n   - job title applied for\n   - years of relevant experience\n   - skills relevant to the target job\n   - education relevant to the target job\n5. Compare the candidate profile with the job description.\n6. Compute a similarity/evaluation score from 0 to 100 based only on the job description and the candidate’s relevant profile.\n7. Assign a final status using these rules:\n   - score >= 80 → interview\n   - score >= 60 and < 80 → review\n   - score < 60 → rejected\n8. Save the final candidate record into the Candidate Save Tool with:\n   - id\n   - name\n   - email\n   - phone\n   - job_id\n   - score\n   - status\n\nRules:\n- Use the job description as the only source of truth for requirements.\n- Do not invent missing information.\n- If a field is missing, return null.\n- Extract only skills and education that are relevant to the applied job.\n- Do not list unrelated skills, unrelated education, or unrelated experience.\n- If the job cannot be matched, return job_not_found and do not score the candidate.\n- Return a strict JSON object only.\n- Do not use markdown.\n- Do not add explanations outside the JSON."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        560,
+        -736
+      ],
+      "id": "17a61ebb-fda6-402a-8628-a23802d7d3e3",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"id\": 1,\n  \"name\": \"Michael Anderson\",\n  \"email\": \"michael.anderson@example.com\",\n  \"phone\": \"+1 555 123 4567\",\n  \"job_id\": \"JOB-001\",\n  \"job_title\": \"Backend Developer\",\n  \"relevant_experience_years\": 4,\n  \"relevant_skills\": [\n    \"Python\",\n    \"Django\",\n    \"REST API\",\n    \"PostgreSQL\",\n    \"Git\"\n  ],\n  \"relevant_education\": {\n    \"degree\": \"Bachelor of Science\",\n    \"field\": \"Computer Science\",\n    \"institution\": \"University of Washington\"\n  },\n  \"score\": 89,\n  \"status\": \"interview\",\n  \"evaluation\": {\n    \"skills_score\": 45,\n    \"experience_score\": 27,\n    \"education_score\": 17,\n    \"matched_requirements\": [\n      \"Python\",\n      \"Django\",\n      \"REST API\",\n      \"PostgreSQL\",\n      \"Git\"\n    ],\n    \"missing_requirements\": [\n      \"Docker\"\n    ],\n    \"summary\": \"The candidate has strong technical skills, relevant professional experience, and an educational background closely aligned with the job requirements.\"\n  }\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        896,
+        -512
+      ],
+      "id": "199ffc74-4075-4b19-a989-20c522ac5d96",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.output.status }}",
+                    "rightValue": "interview",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "19d9d2fe-00e0-4055-ae38-f868e1d69f0f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "interview"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3113e5f9-fab2-4efd-a7b4-90f80b550c08",
+                    "leftValue": "={{ $json.output.status }}",
+                    "rightValue": "rejected",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "rejected"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        1248,
+        -736
+      ],
+      "id": "6b649e64-249f-4917-8c5d-a05817884505",
+      "name": "Switch"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        768,
+        -512
+      ],
+      "id": "9b5f5781-b0d9-4ca7-946b-377eaa2f33e9",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.output.email }}",
+        "subject": "Application Update – Interview Invitation",
+        "emailType": "text",
+        "message": "=Dear {{ $json.output.name }},\n\nThank you for your interest in joining our team and for taking the time to submit your application.\n\nWe are pleased to inform you that, after reviewing your application, your qualifications closely match the requirements of the position. As a result, we would like to invite you to proceed to the next stage of our recruitment process.\n\nOur recruitment team will contact you shortly with the interview details, including the date, time, and meeting instructions.\n\nWe appreciate your interest in our company and look forward to speaking with you.\n\nBest regards,\n\nHuman Resources Team\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1472,
+        -832
+      ],
+      "id": "d91cb696-a67e-43d9-8e0f-a3d4172f7119",
+      "name": "interview Email",
+      "webhookId": "b132fefd-2ffe-4125-94a8-32722649393d",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Q5BqHUFMrQ61bT12",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.output.email }}",
+        "subject": "Application Update",
+        "emailType": "text",
+        "message": "=Dear {{ $json.output.name }},\n\nThank you for your interest in joining our team and for taking the time to submit your application.\n\nWe appreciate the opportunity to review your qualifications. After careful consideration, we have decided not to move forward with your application for this position at this time.\n\nThis decision does not diminish your skills or potential, and we encourage you to apply again in the future should another opportunity align with your experience and qualifications.\n\nWe sincerely appreciate your interest in our company and wish you every success in your future career.\n\nThank you once again for your time and effort.\n\nBest regards,\n\nHuman Resources Team\n",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1472,
+        -640
+      ],
+      "id": "fff54041-26e3-4121-9aec-abdbd3eaabe5",
+      "name": "rejected Email",
+      "webhookId": "0e4912db-31c5-404f-849f-ee374fcb737b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Q5BqHUFMrQ61bT12",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        304,
+        -512
+      ],
+      "id": "7a56c582-a531-409f-aa11-b937a5d0d64f",
+      "name": "nvidia-3",
+      "credentials": {
+        "openRouterApi": {
+          "id": "yy8eB1JvJG7zblPC",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4.1-nano",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        976,
+        -304
+      ],
+      "id": "fffabd12-8765-44c3-b257-ca1dfa83eda1",
+      "name": "4.1-nano",
+      "credentials": {
+        "openRouterApi": {
+          "id": "yy8eB1JvJG7zblPC",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1CJOA2nPYNSFO6R9qbeb_XJYicFSEvdNgfcyd38i3g0k",
+          "mode": "list",
+          "cachedResultName": "HR_agent",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CJOA2nPYNSFO6R9qbeb_XJYicFSEvdNgfcyd38i3g0k/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CJOA2nPYNSFO6R9qbeb_XJYicFSEvdNgfcyd38i3g0k/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        -400
+      ],
+      "id": "b090b8da-35cb-4f97-9729-ccf2a80c4709",
+      "name": "Get Job-description Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "16J8BzyjALGPGVF6",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1CJOA2nPYNSFO6R9qbeb_XJYicFSEvdNgfcyd38i3g0k",
+          "mode": "list",
+          "cachedResultName": "HR_agent",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CJOA2nPYNSFO6R9qbeb_XJYicFSEvdNgfcyd38i3g0k/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 558029531,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1CJOA2nPYNSFO6R9qbeb_XJYicFSEvdNgfcyd38i3g0k/edit#gid=558029531"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "statue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('statue', ``, 'string') }}",
+            "score": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('score', ``, 'string') }}",
+            "job_id": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('job_id', ``, 'string') }}",
+            "email": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('email', ``, 'string') }}",
+            "name": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('name', ``, 'string') }}",
+            "phone": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('phone', ``, 'string') }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "name",
+              "displayName": "name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "phone",
+              "displayName": "phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email",
+              "displayName": "email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "job_id",
+              "displayName": "job_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "score",
+              "displayName": "score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "statue",
+              "displayName": "statue",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        640,
+        -384
+      ],
+      "id": "94f6155d-3c60-468f-b972-f4a04ff6898f",
+      "name": "Append Candidate in Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "16J8BzyjALGPGVF6",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Email Trigger (IMAP)": {
+      "main": [
+        [
+          {
+            "node": "Extract Pdf Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Pdf Content": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "interview Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "rejected Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "nvidia-3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4.1-nano": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Structured Output Parser2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Job-description Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append Candidate in Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "352c02bb-a7bd-48aa-991b-afde1557a97c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "20bf6759175be5f02afc20acb14a8e45fb076558fcb82e27c6a035a2dd406886"
+  },
+  "nodeGroups": [],
+  "id": "VPrH45CRvgkURqB4",
+  "tags": [
+    {
+      "updatedAt": "2026-07-21T11:32:51.719Z",
+      "createdAt": "2026-07-21T11:32:51.719Z",
+      "id": "aTBqfsWD3vmwEW8Q",
+      "name": "project"
+    }
+  ]
+}
